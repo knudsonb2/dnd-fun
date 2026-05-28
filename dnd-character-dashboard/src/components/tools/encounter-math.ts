@@ -50,6 +50,23 @@ export const areMonsterGroupsEqual = (
   return leftKeys.every((key, index) => key === rightKeys[index] && leftSummary[key] === rightSummary[key]);
 };
 
+export interface EncounterChangeCheckInput {
+  currentName: string;
+  savedName: string;
+  currentEnvironment: string;
+  savedEnvironment: string;
+  currentGroups: Encounter['monsterGroups'];
+  savedGroups: Encounter['monsterGroups'];
+}
+
+export const hasEncounterChanges = (input: EncounterChangeCheckInput): boolean => {
+  const nameChanged = input.currentName.trim() !== input.savedName;
+  const environmentChanged = input.currentEnvironment.trim() !== input.savedEnvironment;
+  const groupsChanged = !areMonsterGroupsEqual(input.currentGroups, input.savedGroups);
+
+  return nameChanged || environmentChanged || groupsChanged;
+};
+
 const thresholdsByLevel: Record<number, EncounterThresholds> = {
   1: { easy: 25, medium: 50, hard: 75, deadly: 100 },
   2: { easy: 50, medium: 100, hard: 150, deadly: 200 },

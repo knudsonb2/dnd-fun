@@ -12,6 +12,7 @@ import {
   getEncounterDifficulty,
   getMonsterQuantityDiff,
   getMonsterXpBreakdown,
+  hasEncounterChanges,
   getMonsterCountMultiplier,
   getPartyThresholds,
   getThresholdForLevel,
@@ -195,5 +196,21 @@ describe('encounter-math', () => {
 
     expect(areMonsterGroupsEqual(first, second)).toBe(true);
     expect(areMonsterGroupsEqual(first, third)).toBe(false);
+  });
+
+  test('detects encounter draft changes for name/environment/groups', () => {
+    const base = {
+      currentName: 'Bridge Ambush',
+      savedName: 'Bridge Ambush',
+      currentEnvironment: 'Roadside',
+      savedEnvironment: 'Roadside',
+      currentGroups: [{ monsterId: 'goblin', quantity: 2 }],
+      savedGroups: [{ monsterId: 'goblin', quantity: 2 }]
+    };
+
+    expect(hasEncounterChanges(base)).toBe(false);
+    expect(hasEncounterChanges({ ...base, currentName: 'Bridge Ambush v2' })).toBe(true);
+    expect(hasEncounterChanges({ ...base, currentEnvironment: 'Forest' })).toBe(true);
+    expect(hasEncounterChanges({ ...base, currentGroups: [{ monsterId: 'goblin', quantity: 3 }] })).toBe(true);
   });
 });

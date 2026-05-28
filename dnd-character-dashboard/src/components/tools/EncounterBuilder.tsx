@@ -7,7 +7,6 @@ import { loadEncounters, saveEncounters, SavedEncounter } from '../../utils/stor
 import FantasyPageBanner from '../FantasyPageBanner';
 import nightCitadel from '../../assets/fantasy/night-citadel.svg';
 import {
-  areMonsterGroupsEqual,
   getActionEconomyRisk,
   getAveragePartyLevel,
   getAdjustedMultiplierForPartySize,
@@ -17,6 +16,7 @@ import {
   getMonsterQuantityDiff,
   getMonsterCountMultiplier,
   getMonsterXpBreakdown,
+  hasEncounterChanges,
   getPartyThresholds,
   getTotalMonsters,
   hasCrSpikeAgainstParty
@@ -151,10 +151,14 @@ const EncounterBuilder: React.FC<{ characters: Character[] }> = ({ characters })
       return false;
     }
 
-    const nameChanged = encounterName.trim() !== editingEncounter.name;
-    const environmentChanged = environment.trim() !== editingEncounter.environment;
-    const groupsChanged = !areMonsterGroupsEqual(groups, editingEncounter.monsterGroups);
-    return nameChanged || environmentChanged || groupsChanged;
+    return hasEncounterChanges({
+      currentName: encounterName,
+      savedName: editingEncounter.name,
+      currentEnvironment: environment,
+      savedEnvironment: editingEncounter.environment,
+      currentGroups: groups,
+      savedGroups: editingEncounter.monsterGroups
+    });
   }, [editingEncounter, encounterName, environment, groups]);
 
   const encounter: Encounter = {
