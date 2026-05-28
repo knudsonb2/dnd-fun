@@ -1,0 +1,416 @@
+import React, { useMemo, useState } from 'react';
+import styled from 'styled-components';
+import { Character } from '../../models/character.model';
+import { Encounter } from '../../models/encounter.model';
+import { mockMonsters, monsterXpById } from '../../data/mockMonsters';
+import { loadEncounters, saveEncounters, SavedEncounter } from '../../utils/storage';
+import FantasyPageBanner from '../FantasyPageBanner';
+import nightCitadel from '../../assets/fantasy/night-citadel.svg';
+import {
+  areMonsterGroupsEqual,
+  getActionEconomyRisk,
+  getAveragePartyLevel,
+  getAdjustedMultiplierForPartySize,
+  getBaseXp,
+  getDifficultyDelta,
+  getEncounterDifficulty,
+  getMonsterQuantityDiff,
+  getMonsterCountMultiplier,
+  getMonsterXpBreakdown,
+  getPartyThresholds,
+  getTotalMonsters,
+  hasCrSpikeAgainstParty
+} from './encounter-math';
+
+const Container = styled.div`
+  display: grid;
+  gap: 1rem;
+`;
+
+const Card = styled.div`
+  background: var(--surface-muted);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+`;
+
+const Row = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const Button = styled.button`
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: white;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+`;
+
+const HistoryItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #ffffff;
+`;
+
+const Actions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ImportInput = styled.input`
+  display: block;
+  margin-top: 8px;
+`;
+
+const DangerButton = styled(Button)`
+  background: color-mix(in oklch, var(--brand), black 10%);
+`;
+
+const ControlRow = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
+const Warning = styled.p`
+  background: color-mix(in oklch, var(--brand), white 84%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+`;
+
+const StatusChip = styled.span<{ $dirty: boolean }>`
+  display: inline-block;
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: ${({ $dirty }) => ($dirty ? 'color-mix(in oklch, var(--brand), white 84%)' : 'var(--surface)')};
+  color: ${({ $dirty }) => ($dirty ? 'var(--text)' : 'var(--text-muted)')};
+  font-size: 0.85rem;
+`;
+
+const EncounterBuilder: React.FC<{ characters: Character[] }> = ({ characters }) => {
+  const [groups, setGroups] = useState<Encounter['monsterGroups']>([{ monsterId: mockMonsters[0].id, quantity: 1 }]);
+  const [environment, setEnvironment] = useState('Dungeon');
+  const [encounterName, setEncounterName] = useState('');
+  const [savedEncounters, setSavedEncounters] = useState<SavedEncounter[]>(loadEncounters);
+  const [editingEncounterId, setEditingEncounterId] = useState<string | null>(null);
+  const [excludeSingleMinion, setExcludeSingleMinion] = useState(false);
+
+  const totalMonsters = getTotalMonsters(groups);
+  const effectiveMonsterCount = excludeSingleMinion && totalMonsters > 1 ? totalMonsters - 1 : totalMonsters;
+  const baseMultiplier = getMonsterCountMultiplier(effectiveMonsterCount);
+  const partySizeAdjustedMultiplier = getAdjustedMultiplierForPartySize(baseMultiplier, characters.length);
+
+  const baseXp = getBaseXp(groups, monsterXpById);
+  const adjustedXp = Math.round(baseXp * partySizeAdjustedMultiplier);
+
+  const partyThreshold = useMemo(() => getPartyThresholds(characters), [characters]);
+
+  const difficulty = useMemo(() => getEncounterDifficulty(adjustedXp, partyThreshold), [adjustedXp, partyThreshold]);
+  const averagePartyLevel = useMemo(() => getAveragePartyLevel(characters), [characters]);
+  const actionEconomyRisk = useMemo(
+    () => getActionEconomyRisk(totalMonsters, Math.max(1, characters.length)),
+    [totalMonsters, characters.length]
+  );
+  const xpBreakdown = useMemo(() => getMonsterXpBreakdown(groups, monsterXpById), [groups]);
+  const overDeadly = adjustedXp > partyThreshold.deadly;
+  const severeDeadly = adjustedXp > Math.round(partyThreshold.deadly * 1.5);
+  const crSpikeWarning = useMemo(
+    () => hasCrSpikeAgainstParty(groups, monsterXpById, characters),
+    [groups, characters]
+  );
+  const editingEncounter = useMemo(
+    () => savedEncounters.find((savedEncounter) => savedEncounter.id === editingEncounterId) ?? null,
+    [savedEncounters, editingEncounterId]
+  );
+  const monsterDiff = useMemo(
+    () => (editingEncounter ? getMonsterQuantityDiff(groups, editingEncounter.monsterGroups) : []),
+    [groups, editingEncounter]
+  );
+  const difficultyDelta = useMemo(
+    () => (editingEncounter ? getDifficultyDelta(difficulty, editingEncounter.difficulty) : 0),
+    [difficulty, editingEncounter]
+  );
+  const hasUnsavedChanges = useMemo(() => {
+    if (!editingEncounter) {
+      return false;
+    }
+
+    const nameChanged = encounterName.trim() !== editingEncounter.name;
+    const environmentChanged = environment.trim() !== editingEncounter.environment;
+    const groupsChanged = !areMonsterGroupsEqual(groups, editingEncounter.monsterGroups);
+    return nameChanged || environmentChanged || groupsChanged;
+  }, [editingEncounter, encounterName, environment, groups]);
+
+  const encounter: Encounter = {
+    id: 'preview',
+    monsterGroups: groups,
+    difficulty,
+    environment,
+    combatStats: {
+      initiative: 0,
+      totalHp: groups.reduce((total, group) => {
+        const monster = mockMonsters.find((entry) => entry.id === group.monsterId);
+        return total + (monster?.derivedStats.hitPoints ?? 0) * group.quantity;
+      }, 0),
+      totalAc: Math.round(
+        groups.reduce((total, group) => {
+          const monster = mockMonsters.find((entry) => entry.id === group.monsterId);
+          return total + (monster?.derivedStats.armorClass ?? 0) * group.quantity;
+        }, 0) / Math.max(totalMonsters, 1)
+      )
+    }
+  };
+
+  const saveCurrentEncounter = () => {
+    const name = encounterName.trim() || `Encounter ${savedEncounters.length + 1}`;
+    const existingEncounter = savedEncounters.find((savedEncounter) => savedEncounter.id === editingEncounterId);
+    const savedEncounter: SavedEncounter = {
+      ...encounter,
+      id: existingEncounter?.id ?? Date.now().toString(),
+      name,
+      createdAt: existingEncounter?.createdAt ?? new Date().toISOString()
+    };
+
+    const updated = editingEncounterId
+      ? savedEncounters.map((entry) => (entry.id === editingEncounterId ? savedEncounter : entry))
+      : [savedEncounter, ...savedEncounters];
+
+    setSavedEncounters(updated);
+    saveEncounters(updated);
+    setEncounterName('');
+    setEditingEncounterId(null);
+  };
+
+  const loadSavedEncounter = (savedEncounter: SavedEncounter) => {
+    setGroups(savedEncounter.monsterGroups);
+    setEnvironment(savedEncounter.environment);
+    setEncounterName(savedEncounter.name);
+    setEditingEncounterId(savedEncounter.id);
+  };
+
+  const revertToLoadedEncounter = () => {
+    const savedEncounter = savedEncounters.find((entry) => entry.id === editingEncounterId);
+    if (!savedEncounter) {
+      return;
+    }
+
+    setGroups(savedEncounter.monsterGroups);
+    setEnvironment(savedEncounter.environment);
+    setEncounterName(savedEncounter.name);
+  };
+
+  const deleteSavedEncounter = (id: string) => {
+    const updated = savedEncounters.filter((savedEncounter) => savedEncounter.id !== id);
+    setSavedEncounters(updated);
+    saveEncounters(updated);
+    if (editingEncounterId === id) {
+      setEditingEncounterId(null);
+      setEncounterName('');
+    }
+  };
+
+  const exportSavedEncounters = () => {
+    const payload = JSON.stringify(savedEncounters, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'dnd-encounters.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importSavedEncounters = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as SavedEncounter[];
+        const valid = parsed.filter((entry) => entry.id && Array.isArray(entry.monsterGroups));
+        setSavedEncounters(valid);
+        saveEncounters(valid);
+      } catch {
+        return;
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  return (
+    <Container>
+      <FantasyPageBanner
+        title="Encounter Forge"
+        subtitle="Craft tactical battles with challenge tuning, saved presets, and encounter exports."
+        imageSrc={nightCitadel}
+        imageAlt="Dark fantasy fortress landscape"
+      />
+      <h1>Encounter Builder</h1>
+      <Card>
+        <h3>Monsters</h3>
+        {groups.map((group, index) => (
+          <Row key={`${group.monsterId}-${index}`}>
+            <select
+              value={group.monsterId}
+              onChange={(event) => {
+                const updated = [...groups];
+                updated[index] = { ...group, monsterId: event.target.value };
+                setGroups(updated);
+              }}
+            >
+              {mockMonsters.map((monster) => (
+                <option key={monster.id} value={monster.id}>
+                  {monster.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={1}
+              value={group.quantity}
+              onChange={(event) => {
+                const updated = [...groups];
+                updated[index] = { ...group, quantity: Number(event.target.value) || 1 };
+                setGroups(updated);
+              }}
+            />
+            <Button
+              onClick={() => setGroups(groups.filter((_, groupIndex) => groupIndex !== index))}
+              disabled={groups.length === 1}
+            >
+              Remove
+            </Button>
+          </Row>
+        ))}
+        <Button onClick={() => setGroups([...groups, { monsterId: mockMonsters[0].id, quantity: 1 }])}>Add Monster Group</Button>
+      </Card>
+
+      <Card>
+        <h3>Encounter Summary</h3>
+        {editingEncounter && (
+          <p>
+            Editing: <strong>{editingEncounter.name}</strong>
+            <StatusChip $dirty={hasUnsavedChanges}>{hasUnsavedChanges ? 'Unsaved changes' : 'Saved state'}</StatusChip>
+          </p>
+        )}
+        <ControlRow>
+          <input
+            type="checkbox"
+            checked={excludeSingleMinion}
+            onChange={(event) => setExcludeSingleMinion(event.target.checked)}
+          />
+          Exclude one trivial add from multiplier
+        </ControlRow>
+        <p>Environment: <input value={environment} onChange={(event) => setEnvironment(event.target.value)} /></p>
+        <p>Base XP: {baseXp}</p>
+        <p>
+          Multiplier: {baseMultiplier.toFixed(1)}
+          {partySizeAdjustedMultiplier !== baseMultiplier
+            ? ` → ${partySizeAdjustedMultiplier.toFixed(1)} (party size adjustment)`
+            : ''}
+        </p>
+        <p>Adjusted XP: {adjustedXp}</p>
+        <p>Average party level: {averagePartyLevel.toFixed(1)}</p>
+        <p>Party thresholds: Easy {partyThreshold.easy} / Medium {partyThreshold.medium} / Hard {partyThreshold.hard} / Deadly {partyThreshold.deadly}</p>
+        <p>Difficulty: <strong>{encounter.difficulty}</strong></p>
+        <p>Action economy risk: <strong>{actionEconomyRisk}</strong></p>
+        {editingEncounter && (
+          <>
+            <p><strong>Changes since last save ({editingEncounter.name})</strong></p>
+            <p>
+              Difficulty delta:{' '}
+              <strong>
+                {difficultyDelta > 0
+                  ? `+${difficultyDelta} tier${difficultyDelta > 1 ? 's' : ''}`
+                  : difficultyDelta < 0
+                    ? `${difficultyDelta} tier${Math.abs(difficultyDelta) > 1 ? 's' : ''}`
+                    : 'No change'}
+              </strong>
+            </p>
+            {monsterDiff.length === 0 && <p>Monster composition unchanged.</p>}
+            {monsterDiff.map((entry) => {
+              const monster = mockMonsters.find((item) => item.id === entry.monsterId);
+              const name = monster?.name ?? entry.monsterId;
+              const direction = entry.delta > 0 ? `+${entry.delta}` : `${entry.delta}`;
+              return (
+                <p key={`diff-${entry.monsterId}`}>
+                  {name}: {entry.previousQuantity} → {entry.currentQuantity} ({direction})
+                </p>
+              );
+            })}
+          </>
+        )}
+        {overDeadly && <Warning>Warning: Encounter exceeds deadly threshold for this party.</Warning>}
+        {severeDeadly && <Warning>High risk: Adjusted XP is 150%+ of deadly threshold and may be swingy.</Warning>}
+        {crSpikeWarning && <Warning>CR spike warning: one or more monsters may be significantly above party level.</Warning>}
+        <p><strong>XP contribution by group</strong></p>
+        {xpBreakdown.map((entry, index) => {
+          const monster = mockMonsters.find((item) => item.id === entry.monsterId);
+          const name = monster?.name ?? entry.monsterId;
+          return (
+            <p key={`${entry.monsterId}-${index}`}>
+              {name}: {entry.quantity} × {entry.xpEach} = {entry.totalXp} XP
+            </p>
+          );
+        })}
+        <p>Total monster HP: {encounter.combatStats.totalHp}</p>
+        <p>Average monster AC: {encounter.combatStats.totalAc}</p>
+        <Row>
+          <input
+            type="text"
+            placeholder={editingEncounterId ? 'Update encounter name' : 'Encounter name'}
+            value={encounterName}
+            onChange={(event) => setEncounterName(event.target.value)}
+          />
+          {editingEncounterId ? <Button onClick={revertToLoadedEncounter}>Revert to Saved</Button> : <div />}
+          <Button onClick={saveCurrentEncounter} disabled={Boolean(editingEncounterId) && !hasUnsavedChanges}>
+            {editingEncounterId ? 'Update Encounter' : 'Save Encounter'}
+          </Button>
+        </Row>
+      </Card>
+
+      <Card>
+        <h3>Saved Encounters</h3>
+        <Actions>
+          <Button onClick={exportSavedEncounters} disabled={savedEncounters.length === 0}>Export JSON</Button>
+        </Actions>
+        <ImportInput type="file" accept="application/json" onChange={importSavedEncounters} />
+        {savedEncounters.length === 0 && <p>No saved encounters yet.</p>}
+        {savedEncounters.map((savedEncounter) => (
+          <HistoryItem key={savedEncounter.id}>
+            <div>
+              <strong>{savedEncounter.name}</strong>
+              <div>{savedEncounter.difficulty} • {savedEncounter.environment}</div>
+            </div>
+            <Actions>
+              <Button onClick={() => loadSavedEncounter(savedEncounter)}>Load/Edit</Button>
+              <DangerButton onClick={() => deleteSavedEncounter(savedEncounter.id)}>Delete</DangerButton>
+            </Actions>
+          </HistoryItem>
+        ))}
+      </Card>
+    </Container>
+  );
+};
+
+export default EncounterBuilder;

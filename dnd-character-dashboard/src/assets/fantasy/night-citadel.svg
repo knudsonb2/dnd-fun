@@ -1,0 +1,15 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="600" y1="0" x2="600" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#21183E"/>
+      <stop offset="1" stop-color="#0B0D1A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" rx="20" fill="url(#sky)"/>
+  <circle cx="948" cy="74" r="36" fill="#E7D6FF" opacity="0.85"/>
+  <path d="M0 280L80 220L170 250L240 180L360 240L470 180L560 210L640 150L760 220L840 170L920 220L1020 160L1120 220L1200 190V360H0V280Z" fill="#1A1D34"/>
+  <path d="M430 288V160L520 90L610 160V288H430Z" fill="#2D2552"/>
+  <rect x="470" y="180" width="22" height="28" fill="#FFCA7A" opacity="0.9"/>
+  <rect x="550" y="180" width="22" height="28" fill="#FFCA7A" opacity="0.9"/>
+  <text x="48" y="78" fill="#C9B6FF" font-size="34" font-family="Inter, sans-serif" opacity="0.9">Citadel of Endless Quests</text>
+</svg>

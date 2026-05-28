@@ -1,0 +1,61 @@
+.App {
+  min-height: 100vh;
+  position: relative;
+}
+
+.app-main {
+  position: relative;
+  z-index: 1;
+  padding: clamp(0.75rem, 1.8vw, 1.4rem);
+}
+
+.app-shell {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: clamp(1rem, 2.5vw, 1.8rem);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  background: color-mix(in oklch, var(--surface), black 3%);
+  box-shadow: var(--shadow-md);
+}
+
+.app-shell > div {
+  text-align: left;
+}
+
+.app-shell h1 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.5rem, 3.2vw, 2.3rem);
+}
+
+.app-shell h2 {
+  margin: 1.2rem 0 0.75rem;
+  font-size: clamp(1.2rem, 2.6vw, 1.6rem);
+  border-bottom: 2px solid color-mix(in oklch, var(--brand), black 45%);
+  padding-bottom: 0.35rem;
+}
+
+.app-shell [style],
+.app-shell section,
+.app-shell article {
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 767px) {
+  .app-main {
+    padding: 0.65rem;
+  }
+
+  .app-shell {
+    border-radius: var(--radius-md);
+    padding: 0.9rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .app-main {
+    margin-left: 270px;
+    padding: 1.2rem 1.4rem 1.6rem;
+  }
+}

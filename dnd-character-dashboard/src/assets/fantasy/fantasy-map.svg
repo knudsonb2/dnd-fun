@@ -1,0 +1,18 @@
+<svg width="1200" height="500" viewBox="0 0 1200 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#efe4cb"/>
+      <stop offset="1" stop-color="#dcc8a5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="500" rx="24" fill="url(#bg)"/>
+  <path d="M80 380C220 310 280 340 400 300C560 250 650 130 780 180C890 220 980 160 1120 220" stroke="#805C38" stroke-width="8" stroke-linecap="round" opacity="0.6"/>
+  <path d="M120 160L210 220L320 140L430 200L500 120" stroke="#5B3A24" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <circle cx="300" cy="290" r="16" fill="#A56A2C"/>
+  <circle cx="760" cy="210" r="16" fill="#A56A2C"/>
+  <circle cx="980" cy="250" r="16" fill="#A56A2C"/>
+  <path d="M292 282L308 298M308 282L292 298" stroke="#fff" stroke-width="3"/>
+  <path d="M752 202L768 218M768 202L752 218" stroke="#fff" stroke-width="3"/>
+  <path d="M972 242L988 258M988 242L972 258" stroke="#fff" stroke-width="3"/>
+  <text x="70" y="70" fill="#5B3A24" font-family="serif" font-size="40" opacity="0.85">The Realm Awaits</text>
+</svg>
