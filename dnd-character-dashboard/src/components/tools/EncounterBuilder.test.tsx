@@ -43,14 +43,23 @@ describe('EncounterBuilder', () => {
   test('resets draft and shows inline hints', () => {
     render(<EncounterBuilder characters={[mockCharacters[0]]} />);
 
+    const resetButton = screen.getByRole('button', { name: /reset draft/i });
+    expect(resetButton).toBeDisabled();
+
     fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '0' } });
     expect(screen.getByText(/invalid quantity was corrected/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue('Dungeon'), { target: { value: 'Forest' } });
+    expect(resetButton).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: /save encounter/i }));
     expect(screen.getByText(/auto-generated encounter name/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByDisplayValue('Dungeon'), { target: { value: 'Forest' } });
-    fireEvent.click(screen.getByRole('button', { name: /reset draft/i }));
+    fireEvent.click(resetButton);
+    expect(screen.getByText(/draft reset to defaults/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue('Dungeon')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue('Dungeon'), { target: { value: 'Cavern' } });
+    expect(screen.queryByText(/draft reset to defaults/i)).not.toBeInTheDocument();
   });
 });
